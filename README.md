@@ -1,7 +1,3 @@
-This `README.md` is designed to meet the high standards of the **Scalar OpenEnv Hackathon**. It clearly defines your environment's logic, the mathematical reward function, and the technical steps required for judges to reproduce your results.
-
------
-
 # 🚦 Detraff: Autonomous Traffic Control RL Environment
 
 **Detraff** is a Reinforcement Learning (RL) environment built using Meta's **OpenEnv** framework. It simulates a 4-way intersection where an AI agent must manage traffic lights to optimize vehicle throughput while maintaining **strict prioritization** for emergency vehicles (Ambulances, Fire Trucks).
