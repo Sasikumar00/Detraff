@@ -1,255 +1,144 @@
----
-title: Detraff Env Environment Server
-emoji: 🎲
-colorFrom: purple
-colorTo: gray
-sdk: docker
-pinned: false
-app_port: 8000
-base_path: /web
-tags:
-  - openenv
----
+# 🚦 Detraff: Autonomous Traffic Control RL Environment
 
-# Detraff Env Environment
+**Detraff** is a Reinforcement Learning (RL) environment built using Meta's **OpenEnv** framework. It simulates a 4-way intersection where an AI agent must manage traffic lights to optimize vehicle throughput while maintaining **strict prioritization** for emergency vehicles (Ambulances, Fire Trucks).
 
-A simple test environment that echoes back messages. Perfect for testing the env APIs as well as demonstrating environment usage patterns.
+This project was developed for **Round 1 of the Scalar OpenEnv Hackathon (2026)**.
 
-## Quick Start
+-----
 
-The simplest way to use the Detraff Env environment is through the `DetraffEnv` class:
+## 🏗️ Environment Specification
 
-```python
-from detraff_env import DetraffAction, DetraffEnv
+### 1\. Action Space
 
-try:
-    # Create environment from Docker image
-    detraff_envenv = DetraffEnv.from_docker_image("detraff_env-env:latest")
+The agent controls the traffic light phases.
 
-    # Reset
-    result = detraff_envenv.reset()
-    print(f"Reset: {result.observation.echoed_message}")
+  * **`0`**: North-South Green (East-West Red)
+  * **`1`**: East-West Green (North-South Red)
 
-    # Send multiple messages
-    messages = ["Hello, World!", "Testing echo", "Final message"]
+### 2\. Observation Space
 
-    for msg in messages:
-        result = detraff_envenv.step(DetraffAction(message=msg))
-        print(f"Sent: '{msg}'")
-        print(f"  → Echoed: '{result.observation.echoed_message}'")
-        print(f"  → Length: {result.observation.message_length}")
-        print(f"  → Reward: {result.reward}")
+The environment provides a "Flat Observation" containing:
 
-finally:
-    # Always clean up
-    detraff_envenv.close()
-```
+  * `lane_queues`: Current vehicle count for North, South, East, and West lanes.
+  * `emergency_waiting`: Boolean flags indicating if an Emergency Vehicle (EV) is stuck in a specific lane.
+  * `current_phase`: The currently active light phase.
+  * `reward`: The immediate feedback for the previous action.
+  * `done`: Boolean indicating if the episode (100 steps) has concluded.
 
-That's it! The `DetraffEnv.from_docker_image()` method handles:
-- Starting the Docker container
-- Waiting for the server to be ready
-- Connecting to the environment
-- Container cleanup when you call `close()`
+### 3\. Reward Function
 
-## Building the Docker Image
+To enforce strict priority, the reward is calculated using a weighted penalty system:
 
-Before using the environment, you need to build the Docker image:
+$$Reward = \max\left(0, \frac{100 - (\text{TotalCars} \times 1) - (\text{TotalEVs} \times 25)}{100}\right)$$
 
-```bash
-# From project root
-docker build -t detraff_env-env:latest -f server/Dockerfile .
-```
+  * **Standard Penalty:** -1 per vehicle waiting in any lane.
+  * **Priority Penalty:** -25 per Emergency Vehicle waiting in any lane.
+  * **Normalization:** The score is clamped between $0.0$ and $1.0$.
 
-## Deploying to Hugging Face Spaces
+-----
 
-You can easily deploy your OpenEnv environment to Hugging Face Spaces using the `openenv push` command:
-
-```bash
-# From the environment directory (where openenv.yaml is located)
-openenv push
-
-# Or specify options
-openenv push --namespace my-org --private
-```
-
-The `openenv push` command will:
-1. Validate that the directory is an OpenEnv environment (checks for `openenv.yaml`)
-2. Prepare a custom build for Hugging Face Docker space (enables web interface)
-3. Upload to Hugging Face (ensuring you're logged in)
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Authenticate with Hugging Face: The command will prompt for login if not already authenticated
+  * Python 3.10+
+  * Docker (for local validation)
+  * [uv](https://github.com/astral-sh/uv) (recommended for dependency management)
 
-### Options
+### Installation
 
-- `--directory`, `-d`: Directory containing the OpenEnv environment (defaults to current directory)
-- `--repo-id`, `-r`: Repository ID in format 'username/repo-name' (defaults to 'username/env-name' from openenv.yaml)
-- `--base-image`, `-b`: Base Docker image to use (overrides Dockerfile FROM)
-- `--private`: Deploy the space as private (default: public)
+1.  **Clone the repository:**
 
-### Examples
+    ```bash
+    git clone https://github.com/your-username/detraff_env.git
+    cd detraff_env
+    ```
 
-```bash
-# Push to your personal namespace (defaults to username/env-name from openenv.yaml)
-openenv push
+2.  **Set up the environment:**
 
-# Push to a specific repository
-openenv push --repo-id my-org/my-env
+    ```bash
+    uv sync
+    # OR
+    pip install -r requirements.txt
+    ```
 
-# Push with a custom base image
-openenv push --base-image ghcr.io/meta-pytorch/openenv-base:latest
+3.  **Set Environment Variables:**
 
-# Push as a private space
-openenv push --private
+    ```bash
+    export HF_TOKEN="your_huggingface_token"
+    export API_BASE_URL="https://router.huggingface.co/v1"
+    export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+    ```
 
-# Combine options
-openenv push --repo-id my-org/my-env --base-image custom-base:latest --private
-```
+-----
 
-After deployment, your space will be available at:
-`https://huggingface.co/spaces/<repo-id>`
+## 🛠️ Usage
 
-The deployed space includes:
-- **Web Interface** at `/web` - Interactive UI for exploring the environment
-- **API Documentation** at `/docs` - Full OpenAPI/Swagger interface
-- **Health Check** at `/health` - Container health monitoring
-- **WebSocket** at `/ws` - Persistent session endpoint for low-latency interactions
+### Running the Server Locally
 
-## Environment Details
-
-### Action
-**DetraffAction**: Contains a single field
-- `message` (str) - The message to echo back
-
-### Observation
-**DetraffObservation**: Contains the echo response and metadata
-- `echoed_message` (str) - The message echoed back
-- `message_length` (int) - Length of the message
-- `reward` (float) - Reward based on message length (length × 0.1)
-- `done` (bool) - Always False for echo environment
-- `metadata` (dict) - Additional info like step count
-
-### Reward
-The reward is calculated as: `message_length × 0.1`
-- "Hi" → reward: 0.2
-- "Hello, World!" → reward: 1.3
-- Empty message → reward: 0.0
-
-## Advanced Usage
-
-### Connecting to an Existing Server
-
-If you already have a Detraff Env environment server running, you can connect directly:
-
-```python
-from detraff_env import DetraffEnv
-
-# Connect to existing server
-detraff_envenv = DetraffEnv(base_url="<ENV_HTTP_URL_HERE>")
-
-# Use as normal
-result = detraff_envenv.reset()
-result = detraff_envenv.step(DetraffAction(message="Hello!"))
-```
-
-Note: When connecting to an existing server, `detraff_envenv.close()` will NOT stop the server.
-
-### Using the Context Manager
-
-The client supports context manager usage for automatic connection management:
-
-```python
-from detraff_env import DetraffAction, DetraffEnv
-
-# Connect with context manager (auto-connects and closes)
-with DetraffEnv(base_url="http://localhost:8000") as env:
-    result = env.reset()
-    print(f"Reset: {result.observation.echoed_message}")
-    # Multiple steps with low latency
-    for msg in ["Hello", "World", "!"]:
-        result = env.step(DetraffAction(message=msg))
-        print(f"Echoed: {result.observation.echoed_message}")
-```
-
-The client uses WebSocket connections for:
-- **Lower latency**: No HTTP connection overhead per request
-- **Persistent session**: Server maintains your environment state
-- **Efficient for episodes**: Better for many sequential steps
-
-### Concurrent WebSocket Sessions
-
-The server supports multiple concurrent WebSocket connections. To enable this,
-modify `server/app.py` to use factory mode:
-
-```python
-# In server/app.py - use factory mode for concurrent sessions
-app = create_app(
-    DetraffEnvironment,  # Pass class, not instance
-    DetraffAction,
-    DetraffObservation,
-    max_concurrent_envs=4,  # Allow 4 concurrent sessions
-)
-```
-
-Then multiple clients can connect simultaneously:
-
-```python
-from detraff_env import DetraffAction, DetraffEnv
-from concurrent.futures import ThreadPoolExecutor
-
-def run_episode(client_id: int):
-    with DetraffEnv(base_url="http://localhost:8000") as env:
-        result = env.reset()
-        for i in range(10):
-            result = env.step(DetraffAction(message=f"Client {client_id}, step {i}"))
-        return client_id, result.observation.message_length
-
-# Run 4 episodes concurrently
-with ThreadPoolExecutor(max_workers=4) as executor:
-    results = list(executor.map(run_episode, range(4)))
-```
-
-## Development & Testing
-
-### Direct Environment Testing
-
-Test the environment logic directly without starting the HTTP server:
+To start the FastAPI environment server:
 
 ```bash
-# From the server directory
-python3 server/detraff_env_environment.py
+export PYTHONPATH=$PYTHONPATH:.
+python server/app.py
 ```
 
-This verifies that:
-- Environment resets correctly
-- Step executes actions properly
-- State tracking works
-- Rewards are calculated correctly
+The server will be available at `http://localhost:8000`. You can view the API documentation at `/docs`.
 
-### Running Locally
+### Running the Inference Baseline
 
-Run the server locally for development:
+To run the AI agent and generate the mandatory hackathon logs:
 
 ```bash
-uvicorn server.app:app --reload
+python inference.py
 ```
 
-## Project Structure
+-----
 
+## 🧪 Validation & Submission
+
+This environment is fully compliant with the **OpenEnv Spec**.
+
+### 1\. Local Validation
+
+To run the pre-submission validator:
+
+```bash
+bash validator.py http://localhost:8000 --repo_path .
 ```
+
+### 2\. Hugging Face Deployment
+
+The environment is deployed as a Hugging Face Space.
+
+  * **Direct API URL:** `https://your-username-detraff-env.hf.space/web`
+  * **Entry Point:** `server.app:app`
+
+### 3\. Logging Format
+
+The `inference.py` script emits structured logs required for automated grading:
+
+  * `[START]`: Episode initialization.
+  * `[STEP]`: Per-step action, reward, and state.
+  * `[END]`: Final cumulative score and success status.
+
+-----
+
+## 📂 Project Structure
+
+```text
 detraff_env/
-├── .dockerignore         # Docker build exclusions
-├── __init__.py            # Module exports
-├── README.md              # This file
-├── openenv.yaml           # OpenEnv manifest
-├── pyproject.toml         # Project metadata and dependencies
-├── uv.lock                # Locked dependencies (generated)
-├── client.py              # DetraffEnv client
-├── models.py              # Action and Observation models
-└── server/
-    ├── __init__.py        # Server module exports
-    ├── detraff_env_environment.py  # Core environment logic
-    ├── app.py             # FastAPI application (HTTP + WebSocket endpoints)
-    └── Dockerfile         # Container image definition
+├── server/
+│   ├── app.py              # FastAPI Server Entry Point
+│   └── environment.py      # Core Traffic Logic & MDP
+├── models.py               # Pydantic Action/Observation Schemas
+├── inference.py            # AI Agent Baseline & Logging
+├── openenv.yaml            # Hackathon Metadata & Task Definitions
+├── pyproject.toml          # Dependency Management
+└── Dockerfile              # Container Configuration
 ```
+
+-----
+
+**Collaborator:** Gemini 3 Flash (AI Plus Tier)  
+**Hackathon:** Scalar OpenEnv Round 1 (2026)
