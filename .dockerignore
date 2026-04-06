@@ -1,0 +1,5 @@
+openenv_hack/
+.venv/
+__pycache__/
+*.pyc
+.git/
