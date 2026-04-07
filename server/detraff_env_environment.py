@@ -80,8 +80,7 @@ class DetraffEnvironment(Environment):
             if random.random() < self.spawn_rate:
                 self.queues[lane] += 1
             
-            # 5% chance of an Emergency Vehicle arriving (if one isn't already there)
-            if not self.ev_present[lane] and random.random() < 0.05:
+            if not self.ev_present[lane] and random.random() < self.ev_rate:
                 self.ev_present[lane] = True
                 self.queues[lane] += 1
 
