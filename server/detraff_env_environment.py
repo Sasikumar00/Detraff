@@ -39,7 +39,7 @@ class DetraffEnvironment(Environment):
         self._state.episode_id = str(uuid.uuid4())
         self._state.step_count = 0
 
-        return self._get_obs(reward=0.0, done=False)
+        return self._get_obs(reward=0, done=False)
 
     def _get_obs(self, reward: float, done: bool) -> DetraffObservation:
         """Helper to package the current state into the flat model."""
@@ -67,12 +67,11 @@ class DetraffEnvironment(Environment):
         # --- 1. Physics: Vehicles move through Green lights ---
         green_lanes = ["north", "south"] if self.phase == 0 else ["east", "west"]
         for lane in green_lanes:
-            if self.queues[lane] > 0:
+            if self.queues[lane] > 0 or self.ev_present[lane]::
                 # Clear 2 vehicles per step
-                cleared = 2
-                self.queues[lane] = max(0, self.queues[lane] - cleared)
+                self.queues[lane] = max(0, self.queues[lane] - 2)
                 # If lane is empty, emergency vehicle has passed
-                if self.queues[lane] == 0:
+                if self.ev_present[lane]:
                     self.ev_present[lane] = False
 
         # --- 2. Simulation: New vehicles and EVs arrive ---
@@ -89,7 +88,7 @@ class DetraffEnvironment(Environment):
         total_cars = sum(self.queues.values())
         ev_waiting_count = sum(1 for present in self.ev_present.values() if present)
 
-        # Baseline of 1.0 is good, but let's make the congestion penalty less steep
+        # Baseline of 1 is good, but let's make the congestion penalty less steep
         # Changing divisor from 50 to 80 gives the agent more "breathing room"
         reward = 1.0
         reward -= min(0.6, (total_cars / 80.0) * 0.6) 
@@ -102,9 +101,9 @@ class DetraffEnvironment(Environment):
             reward += 0.20 # Increased from 0.15 to help hit thresholds
 
         # Clamping is essential for OpenEnv spec compliance
-        reward = max(0.0, min(1.0, reward))
+        reward = max(0.01, min(0.99, reward))
 
-        reward = round(float(reward), 2)
+        reward = round(float(reward), 3)
 
         self.prev_total = total_cars
 

@@ -22,7 +22,7 @@ Your goal: Maximize traffic flow and prioritize emergency vehicles (EVs).
 Actions: 
 - Respond with "0" for North-South Green.
 - Respond with "1" for East-West Green.
-Strict Priority: If an EV is waiting, you MUST turn that lane green immediately.
+Strict Priority: If an emergency vehicle is waiting, you MUST turn that lane green immediately.
 Reply ONLY with the number (0 or 1).
 """
 
@@ -45,8 +45,10 @@ def get_action_from_llm(client: OpenAI, obs) -> int:
             max_tokens=5,
             temperature=0.0
         )
-        choice = res.choices[0].message.content.strip()
-        return int(choice) if choice in ["0", "1"] else 0
+        content = res.choices[0].message.content.strip()
+        if "1" in content: return 1
+        if "0" in content: return 0
+        return 0
     except: return 0
 
 def get_success_threshold(task_name):
@@ -74,12 +76,13 @@ async def main():
             log_step(step, str(action_int), obs.reward, obs.done, None)
             if obs.done: break
             
-        final_score = sum(rewards) / len(rewards) if rewards else 0.0
+        final_score = sum(rewards) / len(rewards) if rewards else 0.01
+        final_score = max(0.01, min(0.99, final_score))
         threshold = get_success_threshold(TASK_NAME)
-        success = score >= threshold
+        success = final_score >= threshold
         log_end(success=success, steps=len(rewards), score=final_score, rewards=rewards)
     except Exception as e:
-        log_end(success=False, steps=0, score=0.0, rewards=[])
+        log_end(success=False, steps=0, score=0.01, rewards=[])
         print(f"Error: {e}")
 
 if __name__ == "__main__":

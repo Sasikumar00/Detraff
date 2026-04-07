@@ -7,23 +7,29 @@ port: 8000
 description: "Autonomous Traffic Control with Emergency Priority"
 
 tasks:
-  - name: "low_traffic"
+  - id: low_traffic
+    name: "low_traffic"
     description: "Basic intersection management with low volume."
     grader:
       type: "reward_threshold"
-      field: "reward"
       threshold: 0.8
 
-  - name: "normal_traffic"
+  - id: normal_traffic
+    name: "normal_traffic"
     description: "Standard volume with occasional emergency vehicles."
     grader:
       type: "reward_threshold"
-      field: "reward"
       threshold: 0.5
 
-  - name: "emergency_peak"
+  - id: emergency_peak
+    name: "emergency_peak"
     description: "High volume with frequent emergency vehicle priority needs."
     grader:
       type: "reward_threshold"
-      field: "reward"
       threshold: 0.3
+
+evaluation:
+  metrics:
+    - "reward"
+  max_episode_steps: 20
+  time_limit: 300
