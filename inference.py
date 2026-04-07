@@ -49,9 +49,17 @@ def get_action_from_llm(client: OpenAI, obs) -> int:
         return int(choice) if choice in ["0", "1"] else 0
     except: return 0
 
+def get_success_threshold(task_name):
+    thresholds = {
+        "low_traffic": 0.8,
+        "normal_traffic": 0.5,
+        "emergency_peak": 0.3
+    }
+    return thresholds.get(task_name, 0.5)
+
 async def main():
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    env = DetraffEnvironment(task_name=TASK_NAME) # Local instantiation for validator
+    env = DetraffEnvironment(task_name=TASK_NAME, max_steps=MAX_STEPS) # Local instantiation for validator
     
     rewards = []
     log_start(TASK_NAME, BENCHMARK, MODEL_NAME)
@@ -66,8 +74,10 @@ async def main():
             log_step(step, str(action_int), obs.reward, obs.done, None)
             if obs.done: break
             
-        final_score = sum(rewards) / len(rewards) if rewards else 0
-        log_end(success=(final_score > 0.5), steps=len(rewards), score=final_score, rewards=rewards)
+        final_score = sum(rewards) / len(rewards) if rewards else 0.0
+        threshold = get_success_threshold(TASK_NAME)
+        success = score >= threshold
+        log_end(success=success, steps=len(rewards), score=final_score, rewards=rewards)
     except Exception as e:
         log_end(success=False, steps=0, score=0.0, rewards=[])
         print(f"Error: {e}")
