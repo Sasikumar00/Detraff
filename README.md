@@ -1,3 +1,16 @@
+---
+title: Detraff Environment
+emoji: 🎺
+colorFrom: gray
+colorTo: green
+sdk: docker
+pinned: false
+app_port: 8000
+base_path: /web
+tags:
+  - openenv
+---
+
 # 🚦 Detraff: Autonomous Traffic Control RL Environment
 
 **Detraff** is a Reinforcement Learning (RL) environment built using Meta's **OpenEnv** framework. It simulates a 4-way intersection where an AI agent must manage traffic lights to optimize vehicle throughput while maintaining **strict prioritization** for emergency vehicles (Ambulances, Fire Trucks).
