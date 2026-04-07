@@ -62,13 +62,14 @@ class DetraffEnvironment(Environment):
 
         self.current_step += 1
         self.phase = action.phase
+        ev_before = self.ev_present.copy()
         
         # --- 1. Physics: Vehicles move through Green lights ---
         green_lanes = ["north", "south"] if self.phase == 0 else ["east", "west"]
         for lane in green_lanes:
             if self.queues[lane] > 0:
-                # Clear 1-3 vehicles per step
-                cleared = random.randint(1, 3)
+                # Clear 2 vehicles per step
+                cleared = 2
                 self.queues[lane] = max(0, self.queues[lane] - cleared)
                 # If lane is empty, emergency vehicle has passed
                 if self.queues[lane] == 0:
@@ -85,13 +86,35 @@ class DetraffEnvironment(Environment):
                 self.queues[lane] += 1
 
         # --- 3. Scoring: Calculate Reward ---
-        # Formula: $Reward = \max\left(0, \frac{100 - (\text{Total Cars}) - (25 \times \text{EVs waiting})}{100}\right)$
         total_cars = sum(self.queues.values())
         ev_waiting_count = sum(1 for present in self.ev_present.values() if present)
-        
-        # We penalize each car slightly (-1), but EVs heavily (-25) to enforce priority
-        raw_score = 100 - (total_cars * 1) - (ev_waiting_count * 25)
-        reward = max(0.0, min(1.0, raw_score / 100.0))
+
+        if not hasattr(self, "prev_total"):
+            self.prev_total = total_cars
+            self.prev_ev = ev_waiting_count
+            delta_cars = 0
+            delta_ev = 0
+        else:
+            delta_cars = self.prev_total - total_cars
+            delta_ev = self.prev_ev - ev_waiting_count
+
+        reward = 0.0
+
+        reward += delta_cars * 0.05
+        reward += delta_ev * 0.3
+
+        reward -= total_cars * 0.002
+        reward -= ev_waiting_count * 0.03
+        reward -= 0.01
+
+        green_lanes = ["north", "south"] if self.phase == 0 else ["east", "west"]
+        if any(ev_before[lane] for lane in green_lanes):
+            reward += 0.15
+
+        reward = max(-1.0, min(1.0, reward))
+
+        self.prev_total = total_cars
+        self.prev_ev = ev_waiting_count
 
         # --- 4. Termination ---
         done = self.current_step >= self.max_steps
