@@ -67,7 +67,7 @@ class DetraffEnvironment(Environment):
         # --- 1. Physics: Vehicles move through Green lights ---
         green_lanes = ["north", "south"] if self.phase == 0 else ["east", "west"]
         for lane in green_lanes:
-            if self.queues[lane] > 0 or self.ev_present[lane]::
+            if self.queues[lane] > 0 or self.ev_present[lane]:
                 # Clear 2 vehicles per step
                 self.queues[lane] = max(0, self.queues[lane] - 2)
                 # If lane is empty, emergency vehicle has passed
