@@ -102,7 +102,11 @@ class DetraffEnvironment(Environment):
             reward += 0.20 # Increased from 0.15 to help hit thresholds
 
         # Clamping is essential for OpenEnv spec compliance
-        reward = round(max(0.0, min(1.0, reward)), 2)
+        reward = max(0.0, min(1.0, reward))
+
+        reward = round(float(reward), 2)
+
+        self.prev_total = total_cars
 
         # --- 4. Termination ---
         done = self.current_step >= self.max_steps
